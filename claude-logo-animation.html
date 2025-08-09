@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Logo Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .logo-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            cursor: none;
+        }
+
+        .logo-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .star-line {
+            fill: #e07b53;
+            transform-origin: 200px 200px;
+            transition: all 0.15s ease-out;
+        }
+
+        .cursor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .cursor::before,
+        .cursor::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 2px;
+        }
+
+        .cursor::before {
+            width: 20px;
+            height: 4px;
+            top: 8px;
+            left: 0;
+        }
+
+        .cursor::after {
+            width: 4px;
+            height: 20px;
+            top: 0;
+            left: 8px;
+        }
+
+        .info {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            text-align: center;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container" id="logoContainer">
+        <svg class="logo-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+            <g id="starGroup">
+            </g>
+        </svg>
+        
+        <div class="cursor" id="cursor"></div>
+    </div>
+
+    <div class="info">
+        Move your mouse around the logo to see the organic line extensions!
+    </div>
+
+    <script>
+        const logoContainer = document.getElementById('logoContainer');
+        const cursor = document.getElementById('cursor');
+        const starGroup = document.getElementById('starGroup');
+        
+        const centerX = 200;
+        const centerY = 200;
+        
+        /**
+         * Core animation parameters that control the interactive behavior
+         * maxExtension: Maximum pixel distance a ray can extend beyond its base length
+         * influenceRadius: Distance from center where mouse influence begins to fade
+         */
+        const maxExtension = 40;
+        const influenceRadius = 160;
+        const rayCount = 14;
+        const baseRayLength = 70;
+        
+        /**
+         * Organic variation data creates visual diversity across rays
+         * Each ray has unique length, width, and curve multipliers for natural asymmetry
+         */
+        const rayVariations = [
+            { lengthMult: 1.2, widthMult: 0.9, curve: 0.3 },
+            { lengthMult: 0.9, widthMult: 1.2, curve: -0.2 },
+            { lengthMult: 1.1, widthMult: 0.8, curve: 0.1 },
+            { lengthMult: 0.8, widthMult: 1.3, curve: 0.4 },
+            { lengthMult: 1.3, widthMult: 0.7, curve: -0.1 },
+            { lengthMult: 0.95, widthMult: 1.1, curve: 0.2 },
+            { lengthMult: 1.15, widthMult: 0.85, curve: -0.3 },
+            { lengthMult: 0.85, widthMult: 1.25, curve: 0.25 },
+            { lengthMult: 1.25, widthMult: 0.75, curve: 0.15 },
+            { lengthMult: 0.92, widthMult: 1.15, curve: -0.15 },
+            { lengthMult: 1.05, widthMult: 0.95, curve: 0.35 },
+            { lengthMult: 1.0, widthMult: 1.0, curve: 0.0 },
+            { lengthMult: 0.88, widthMult: 1.22, curve: -0.25 },
+            { lengthMult: 1.18, widthMult: 0.82, curve: 0.18 }
+        ];
+        
+        /**
+         * Procedurally generates SVG path elements for each ray of the star
+         * Each ray is positioned radially around the center with organic variations
+         */
+        function createStarRays() {
+            starGroup.innerHTML = '';
+            
+            for (let i = 0; i < rayCount; i++) {
+                const angle = (i * 360 / rayCount) * (Math.PI / 180);
+                const ray = createRay(angle, i);
+                starGroup.appendChild(ray);
+            }
+        }
+        
+        /**
+         * Constructs a single ray as an SVG path with organic geometry
+         * Uses perpendicular vectors to create consistent width throughout the ray
+         */
+        function createRay(angle, index) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.classList.add('star-line');
+            path.dataset.angle = angle;
+            path.dataset.index = index;
+            
+            const variation = rayVariations[index % rayVariations.length];
+            const rayLength = baseRayLength * variation.lengthMult;
+            
+            const endX = centerX + Math.cos(angle) * rayLength;
+            const endY = centerY + Math.sin(angle) * rayLength;
+            
+            /**
+             * Calculate perpendicular vector for ray width
+             * Rotates the direction vector by 90 degrees to get perpendicular sides
+             */
+            const perpX = -Math.sin(angle);
+            const perpY = Math.cos(angle);
+            
+            const rayWidth = (2 + (index % 3) * 1 + (index % 5) * 0.5) * variation.widthMult;
+            const innerRadius = 6;
+            
+            const startX = centerX + Math.cos(angle) * innerRadius;
+            const startY = centerY + Math.sin(angle) * innerRadius;
+            
+            /**
+             * Define ray geometry using perpendicular offsets
+             * Creates four corner points to form a consistent-width ray shape
+             */
+            const startLeft = {
+                x: startX + perpX * rayWidth,
+                y: startY + perpY * rayWidth
+            };
+            const startRight = {
+                x: startX - perpX * rayWidth,
+                y: startY - perpY * rayWidth
+            };
+            
+            const endLeft = {
+                x: endX + perpX * rayWidth,
+                y: endY + perpY * rayWidth
+            };
+            const endRight = {
+                x: endX - perpX * rayWidth,
+                y: endY - perpY * rayWidth
+            };
+            
+            /**
+             * Construct SVG path with rounded end caps using quadratic curves
+             * Starts from center, forms rectangular body, and creates smooth rounded tip
+             */
+            const d = `
+                M ${centerX},${centerY}
+                L ${startLeft.x},${startLeft.y}
+                L ${endLeft.x},${endLeft.y}
+                Q ${endX + perpX * rayWidth * 1.2},${endY + perpY * rayWidth * 1.2} ${endX},${endY + Math.cos(angle) * rayWidth * 0.8 + Math.sin(angle) * rayWidth * 0.8}
+                Q ${endX - perpX * rayWidth * 1.2},${endY - perpY * rayWidth * 1.2} ${endRight.x},${endRight.y}
+                L ${startRight.x},${startRight.y}
+                Z
+            `;
+            
+            path.setAttribute('d', d.replace(/\s+/g, ' ').trim());
+            return path;
+        }
+
+        function updateCursor(e) {
+            const rect = logoContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            cursor.style.left = (x - 10) + 'px';
+            cursor.style.top = (y - 10) + 'px';
+            cursor.style.display = 'block';
+            
+            updateStarLines(x, y);
+        }
+
+        function updateStarLines(mouseX, mouseY) {
+            /**
+             * Transform DOM coordinates to SVG coordinate space
+             * Maintains consistent behavior regardless of container size
+             */
+            const svgMouseX = (mouseX / logoContainer.offsetWidth) * 400;
+            const svgMouseY = (mouseY / logoContainer.offsetHeight) * 400;
+            
+            const mouseVectorX = svgMouseX - centerX;
+            const mouseVectorY = svgMouseY - centerY;
+            const mouseDistance = Math.sqrt(mouseVectorX * mouseVectorX + mouseVectorY * mouseVectorY);
+            
+            const starLines = document.querySelectorAll('.star-line');
+            const starRadius = baseRayLength * 0.9 + 15;
+            
+            /**
+             * Define interaction zones:
+             * Inside star radius: No reaction (rays maintain original scale)
+             * Outside influence radius: No reaction (too far away)
+             * Between radii: Dynamic scaling based on alignment and distance
+             */
+            if (mouseDistance <= starRadius) {
+                starLines.forEach(line => {
+                    line.style.transform = 'scale(1)';
+                });
+                return;
+            }
+            
+            if (mouseDistance > influenceRadius) {
+                starLines.forEach(line => {
+                    line.style.transform = 'scale(1)';
+                });
+                return;
+            }
+            
+            /**
+             * Determine primary ray for extension using dot product alignment
+             * Finds the ray most closely aligned with the mouse direction vector
+             */
+            let bestAlignment = -1;
+            let bestRayIndex = -1;
+            
+            starLines.forEach((line, index) => {
+                const rayAngle = parseFloat(line.dataset.angle);
+                const rayDirX = Math.cos(rayAngle);
+                const rayDirY = Math.sin(rayAngle);
+                
+                /**
+                 * Calculate alignment using normalized dot product
+                 * Returns value from -1 (opposite) to 1 (perfectly aligned)
+                 */
+                const normalizedMouseX = mouseVectorX / mouseDistance;
+                const normalizedMouseY = mouseVectorY / mouseDistance;
+                const alignment = normalizedMouseX * rayDirX + normalizedMouseY * rayDirY;
+                
+                if (alignment > bestAlignment) {
+                    bestAlignment = alignment;
+                    bestRayIndex = index;
+                }
+            });
+            
+            if (bestAlignment < 0.5) {
+                starLines.forEach(line => {
+                    line.style.transform = 'scale(1)';
+                });
+                return;
+            }
+            
+            starLines.forEach((line, index) => {
+                const rayAngle = parseFloat(line.dataset.angle);
+                const rayIndex = parseInt(line.dataset.index);
+                const variation = rayVariations[rayIndex % rayVariations.length];
+                
+                let scale = 1;
+                
+                /**
+                 * Calculate influence falloff based on distance from star edge
+                 * Creates smooth transition as mouse moves away from the logo
+                 */
+                const distanceFromStarEdge = mouseDistance - starRadius;
+                const maxInfluenceDistance = influenceRadius - starRadius;
+                const distanceFactor = 1 - (distanceFromStarEdge / maxInfluenceDistance);
+                
+                /**
+                 * Determine ray relationship to primary ray using angular distance
+                 * Handles angle wrapping for proper 360-degree calculations
+                 */
+                const rayAngleDeg = rayAngle * (180 / Math.PI);
+                const bestRayAngleDeg = parseFloat(starLines[bestRayIndex].dataset.angle) * (180 / Math.PI);
+                let angleDiff = Math.abs(rayAngleDeg - bestRayAngleDeg);
+                if (angleDiff > 180) angleDiff = 360 - angleDiff;
+                
+                if (index === bestRayIndex) {
+                    const extension = maxExtension * distanceFactor * bestAlignment;
+                    scale = 1 + (extension / (baseRayLength * variation.lengthMult));
+                    
+                } else if (angleDiff < 60) {
+                    const neighborFactor = Math.max(0, 1 - (angleDiff / 60));
+                    const halfwayExtension = (maxExtension * 0.5) * distanceFactor * neighborFactor * bestAlignment;
+                    scale = 1 + (halfwayExtension / (baseRayLength * variation.lengthMult));
+                    
+                } else if (angleDiff > 120) {
+                    const oppositeFactor = Math.min(1, (angleDiff - 120) / 60);
+                    const shrinkAmount = 0.15 * distanceFactor * oppositeFactor * bestAlignment;
+                    scale = Math.max(0.8, 1 - shrinkAmount);
+                }
+                
+                line.style.transform = `scale(${scale})`;
+            });
+        }
+
+        function hideCursor() {
+            cursor.style.display = 'none';
+            const starLines = document.querySelectorAll('.star-line');
+            starLines.forEach(line => {
+                line.style.transform = 'scale(1)';
+            });
+        }
+
+        createStarRays();
+        logoContainer.addEventListener('mousemove', updateCursor);
+        logoContainer.addEventListener('mouseleave', hideCursor);
+        hideCursor();
+    </script>
+</body>
+</html>
